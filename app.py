@@ -1,45 +1,94 @@
 
-from functools import wraps
-
+import os
+import bcrypt
 import mysql.connector
-from mysql.connector import Error
+
+from dotenv import load_dotenv
 from flask import (
-    Flask, render_template, request,
-    redirect, url_for, session, flash
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    session,
+    flash
 )
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash
+
+load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", "change-this-secret-key")
 
-# Replace this with a long, random secret key.
-app.secret_key = "2642005"
 
+# =========================
+# Database Connection
+# =========================
 
 def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        password="hadeer@2642005",
+        password=os.getenv("MYSQL_PASSWORD", ""),
         database="registration"
     )
 
 
-def login_required(view):
-    @wraps(view)
-    def wrapped_view(*args, **kwargs):
-        if "user_id" not in session:
-            flash("Please log in first.")
-            return redirect(url_for("login"))
-        return view(*args, **kwargs)
-    return wrapped_view
+# =========================
+# Password Helpers
+# =========================
 
+def verify_password(password, stored_hash):
+    """
+    Supports both:
+    1. New bcrypt password hashes
+    2. Older Werkzeug password hashes
+    """
+
+    if not stored_hash:
+        return False, False
+
+    # Check bcrypt hashes
+    if stored_hash.startswith(("$2a$", "$2b$", "$2y$")):
+        try:
+            valid = bcrypt.checkpw(
+                password.encode("utf-8"),
+                stored_hash.encode("utf-8")
+            )
+            return valid, False
+        except (ValueError, TypeError):
+            return False, False
+
+    # Check legacy Werkzeug hashes
+    try:
+        valid = check_password_hash(stored_hash, password)
+        return valid, valid
+    except (ValueError, TypeError):
+        return False, False
+
+
+def hash_password(password):
+    return bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt()
+    ).decode("utf-8")
+
+
+# =========================
+# Home Page
+# =========================
 
 @app.route("/")
-def home():
+def index():
     if "user_id" in session:
         return redirect(url_for("todos"))
+
     return redirect(url_for("login"))
 
+
+# =========================
+# Register
+# =========================
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -49,15 +98,10 @@ def register():
         password = request.form.get("password", "")
 
         if not name or not email or not password:
-            flash("Please fill in all fields.")
-            return redirect(url_for("register"))
+            flash("Please fill in all fields.", "error")
+            return render_template("register.html")
 
-        if len(password) < 8:
-            flash("Password must be at least 8 characters.")
-            return redirect(url_for("register"))
-
-        password_hash = generate_password_hash(password)
-
+        password_hash = hash_password(password)
         connection = None
         cursor = None
 
@@ -67,25 +111,23 @@ def register():
 
             cursor.execute(
                 """
-                INSERT INTO users (name, email, password_hash)
+                INSERT INTO users (email, name, password_hash)
                 VALUES (%s, %s, %s)
                 """,
-                (name, email, password_hash)
+                (email, name, password_hash)
             )
+
             connection.commit()
 
-            flash("Account created successfully. Please log in.")
+            flash("Account created successfully. Please log in.", "success")
             return redirect(url_for("login"))
 
-        except Error as error:
-            if connection and connection.is_connected():
-                connection.rollback()
+        except mysql.connector.IntegrityError:
+            flash("This email is already registered.", "error")
 
-            if getattr(error, "errno", None) == 1062:
-                flash("This email is already registered.")
-            else:
-                app.logger.error("Registration database error: %s", error)
-                flash("Could not create your account. Please try again.")
+        except mysql.connector.Error as error:
+            app.logger.error("Registration database error: %s", error)
+            flash("A database error occurred. Please try again.", "error")
 
         finally:
             if cursor:
@@ -95,6 +137,10 @@ def register():
 
     return render_template("register.html")
 
+
+# =========================
+# Login
+# =========================
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -111,27 +157,48 @@ def login():
 
             cursor.execute(
                 """
-                SELECT user_id, name, password_hash
+                SELECT user_id, email, name, password_hash
                 FROM users
                 WHERE email = %s
                 """,
                 (email,)
             )
+
             user = cursor.fetchone()
 
-            if user and check_password_hash(
-                user["password_hash"], password
-            ):
-                session.clear()
-                session["user_id"] = user["user_id"]
-                session["name"] = user["name"]
-                return redirect(url_for("todos"))
+            if user:
+                valid, needs_upgrade = verify_password(
+                    password,
+                    user["password_hash"]
+                )
 
-            flash("Invalid email or password.")
+                if valid:
+                    # Upgrade an old Werkzeug hash to bcrypt
+                    if needs_upgrade:
+                        new_hash = hash_password(password)
 
-        except Error as error:
+                        cursor.execute(
+                            """
+                            UPDATE users
+                            SET password_hash = %s
+                            WHERE user_id = %s
+                            """,
+                            (new_hash, user["user_id"])
+                        )
+                        connection.commit()
+
+                    session.clear()
+                    session["user_id"] = user["user_id"]
+                    session["email"] = user["email"]
+                    session["name"] = user["name"]
+
+                    return redirect(url_for("todos"))
+
+            flash("Invalid email or password", "error")
+
+        except mysql.connector.Error as error:
             app.logger.error("Login database error: %s", error)
-            flash("Could not log in. Please try again.")
+            flash("A database error occurred. Please try again.", "error")
 
         finally:
             if cursor:
@@ -142,9 +209,15 @@ def login():
     return render_template("login.html")
 
 
+# =========================
+# To-Do List
+# =========================
+
 @app.route("/todos")
-@login_required
 def todos():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
     connection = None
     cursor = None
 
@@ -154,25 +227,30 @@ def todos():
 
         cursor.execute(
             """
-            SELECT todo_id, title, is_done
+            SELECT todo_id, title, is_done, created_at
             FROM todos
             WHERE user_id = %s
-            ORDER BY created_at DESC
+            ORDER BY todo_id DESC
             """,
             (session["user_id"],)
         )
-        user_todos = cursor.fetchall()
+
+        todo_list = cursor.fetchall()
 
         return render_template(
             "todos.html",
-            todos=user_todos,
-            name=session["name"]
+            todos=todo_list,
+            name=session.get("name", "")
         )
 
-    except Error as error:
-        app.logger.error("Loading tasks failed: %s", error)
-        flash("Could not load your tasks.")
-        return redirect(url_for("login"))
+    except mysql.connector.Error as error:
+        app.logger.error("Loading tasks error: %s", error)
+        flash("Could not load your tasks.", "error")
+        return render_template(
+            "todos.html",
+            todos=[],
+            name=session.get("name", "")
+        )
 
     finally:
         if cursor:
@@ -181,17 +259,19 @@ def todos():
             connection.close()
 
 
+# =========================
+# Add Task
+# =========================
+
 @app.route("/todos/add", methods=["POST"])
-@login_required
 def add_todo():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
     title = request.form.get("title", "").strip()
 
     if not title:
-        flash("Task title cannot be empty.")
-        return redirect(url_for("todos"))
-
-    if len(title) > 200:
-        flash("Task title must be 200 characters or fewer.")
+        flash("Task title cannot be empty.", "error")
         return redirect(url_for("todos"))
 
     connection = None
@@ -208,14 +288,13 @@ def add_todo():
             """,
             (session["user_id"], title)
         )
-        connection.commit()
-        flash("Task added successfully.")
 
-    except Error as error:
-        if connection and connection.is_connected():
-            connection.rollback()
-        app.logger.error("Adding task failed: %s", error)
-        flash("Could not add the task.")
+        connection.commit()
+        flash("Task added successfully.", "success")
+
+    except mysql.connector.Error as error:
+        app.logger.error("Adding task error: %s", error)
+        flash("Could not add the task.", "error")
 
     finally:
         if cursor:
@@ -226,9 +305,21 @@ def add_todo():
     return redirect(url_for("todos"))
 
 
-@app.route("/todos/<int:todo_id>/complete", methods=["POST"])
-@login_required
-def complete_todo(todo_id):
+# =========================
+# Edit Task
+# =========================
+
+@app.route("/todos/<int:todo_id>/edit", methods=["POST"])
+def edit_todo(todo_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    title = request.form.get("title", "").strip()
+
+    if not title:
+        flash("Task title cannot be empty.", "error")
+        return redirect(url_for("todos"))
+
     connection = None
     cursor = None
 
@@ -239,23 +330,22 @@ def complete_todo(todo_id):
         cursor.execute(
             """
             UPDATE todos
-            SET is_done = 1
+            SET title = %s
             WHERE todo_id = %s AND user_id = %s
             """,
-            (todo_id, session["user_id"])
+            (title, todo_id, session["user_id"])
         )
+
         connection.commit()
 
         if cursor.rowcount:
-            flash("Task marked as completed.")
+            flash("Task updated successfully.", "success")
         else:
-            flash("Task not found.")
+            flash("Task not found.", "error")
 
-    except Error as error:
-        if connection and connection.is_connected():
-            connection.rollback()
-        app.logger.error("Completing task failed: %s", error)
-        flash("Could not update the task.")
+    except mysql.connector.Error as error:
+        app.logger.error("Editing task error: %s", error)
+        flash("Could not update the task.", "error")
 
     finally:
         if cursor:
@@ -266,9 +356,60 @@ def complete_todo(todo_id):
     return redirect(url_for("todos"))
 
 
+# =========================
+# Toggle Task Status
+# =========================
+
+@app.route("/todos/<int:todo_id>/toggle", methods=["POST"])
+def toggle_todo(todo_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            UPDATE todos
+            SET is_done = NOT is_done
+            WHERE todo_id = %s AND user_id = %s
+            """,
+            (todo_id, session["user_id"])
+        )
+
+        connection.commit()
+
+        if cursor.rowcount:
+            flash("Task status updated successfully.", "success")
+        else:
+            flash("Task not found.", "error")
+
+    except mysql.connector.Error as error:
+        app.logger.error("Updating task status error: %s", error)
+        flash("Could not update task status.", "error")
+
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+
+    return redirect(url_for("todos"))
+
+
+# =========================
+# Delete Task
+# =========================
+
 @app.route("/todos/<int:todo_id>/delete", methods=["POST"])
-@login_required
 def delete_todo(todo_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
     connection = None
     cursor = None
 
@@ -283,18 +424,17 @@ def delete_todo(todo_id):
             """,
             (todo_id, session["user_id"])
         )
+
         connection.commit()
 
         if cursor.rowcount:
-            flash("Task deleted successfully.")
+            flash("Task deleted successfully.", "success")
         else:
-            flash("Task not found.")
+            flash("Task not found.", "error")
 
-    except Error as error:
-        if connection and connection.is_connected():
-            connection.rollback()
-        app.logger.error("Deleting task failed: %s", error)
-        flash("Could not delete the task.")
+    except mysql.connector.Error as error:
+        app.logger.error("Deleting task error: %s", error)
+        flash("Could not delete the task.", "error")
 
     finally:
         if cursor:
@@ -305,12 +445,19 @@ def delete_todo(todo_id):
     return redirect(url_for("todos"))
 
 
+# =========================
+# Logout
+# =========================
+
 @app.route("/logout")
 def logout():
     session.clear()
-    flash("You have been logged out.")
     return redirect(url_for("login"))
 
+
+# =========================
+# Run Application
+# =========================
 
 if __name__ == "__main__":
     app.run(debug=True)
