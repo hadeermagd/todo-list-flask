@@ -1,24 +1,40 @@
 
-DROP DATABASE IF EXISTS registration;
-CREATE DATABASE registration;
 USE registration;
 
-CREATE TABLE users (
-    user_id INT NOT NULL AUTO_INCREMENT,
-    email VARCHAR(255) NOT NULL,
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    registration_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id),
-    UNIQUE (email)
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL
 );
 
-CREATE TABLE todos (
-    todo_id INT NOT NULL AUTO_INCREMENT,
+CREATE TABLE IF NOT EXISTS todos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    title VARCHAR(200) NOT NULL,
-    is_done TINYINT(1) NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (todo_id),
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    due_date DATE NULL,
+    is_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS AUTHOR (
+    author_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    country VARCHAR(100),
+    photo VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS BOOK (
+    book_id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(150) NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    author_id INT NOT NULL,
+    cover_image VARCHAR(255),
+    FOREIGN KEY (author_id)
+        REFERENCES AUTHOR(author_id)
+        ON DELETE CASCADE
 );

@@ -1,0 +1,54 @@
+
+{% extends "base.html" %}
+
+{% block title %}Library Authors{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Authors</h1>
+        <p class="subtitle">Manage the authors in your library.</p>
+    </div>
+    <a class="btn" href="{{ url_for('add_author') }}">+ Add Author</a>
+</div>
+
+{% if authors %}
+<div class="card-grid">
+    {% for author in authors %}
+    <div class="card author-card">
+        {% if author.photo %}
+        <img
+            class="author-photo"
+            src="{{ url_for('static', filename='images/' ~ author.photo) }}"
+            alt="{{ author.name }}"
+        >
+        {% else %}
+        <div class="image-placeholder">No Photo</div>
+        {% endif %}
+
+        <h2>{{ author.name }}</h2>
+        <p><strong>Country:</strong> {{ author.country or 'Not specified' }}</p>
+        <p><strong>Books:</strong> {{ author.book_count }}</p>
+
+        <div class="actions">
+            <a class="btn"
+               href="{{ url_for('edit_author', author_id=author.author_id) }}">
+                Edit
+            </a>
+
+            <form method="POST"
+                  action="{{ url_for('delete_author', author_id=author.author_id) }}"
+                  onsubmit="return confirm('Delete this author and their books?');">
+                <button class="btn btn-danger" type="submit">Delete</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card empty-state">
+    <h2>No authors found</h2>
+    <a class="btn" href="{{ url_for('add_author') }}">Add Author</a>
+</div>
+{% endif %}
+{% endblock %}
