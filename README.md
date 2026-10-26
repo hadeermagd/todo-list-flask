@@ -1,130 +1,90 @@
-# Login & To-Do Application
+To-Do & Library Management System
 
-## Project Overview
+ABOUT THE PROJECT
+This project is a web-based application developed using Python, Flask, and MySQL. It allows users to manage personal tasks and manage a library of books and authors.
 
-This project is a web-based Login and To-Do List application developed using Python, Flask, and MySQL. It allows users to create accounts, log in securely, and manage their personal tasks.
+FEATURES
 
-## Features
+1. User Authentication
+- User registration and login.
+- Secure password hashing.
+- Session management.
+- Logout functionality.
 
-* User registration with email and password.
-* Secure password hashing using bcrypt.
-* Login and logout functionality.
-* Session-based user authentication.
-* Add new tasks.
-* Edit existing tasks.
-* Mark tasks as completed or open.
-* Delete tasks.
-* Store user accounts and tasks in a MySQL database.
-* Users can only manage their own tasks.
+2. To-Do Management
+- Add, edit, and delete tasks.
+- Mark tasks as completed or pending.
+- Add task descriptions and due dates.
+- Display task counters.
 
-## Technologies Used
+3. Book Management
+- Add, edit, and delete books.
+- Display book titles, authors, and prices.
+- Display book cover images.
+- Search for books.
 
-* **Python** – Backend programming language.
-* **Flask** – Web framework.
-* **MySQL** – Database management system.
-* **mysql-connector-python** – MySQL database connection.
-* **bcrypt** – Password hashing.
-* **python-dotenv** – Environment variable management.
-* **HTML/CSS** – Frontend structure and styling.
+4. Author Management
+- Add, edit, and delete authors.
+- Display author names and countries.
+- Display the number of books for each author.
 
-## Project Structure
+5. Additional Features
+- Dark mode.
+- MySQL database integration.
+- User input validation.
+- Simple and user-friendly interface.
 
-```text
-DB LAB2/
-│
-├── app.py
-├── .env
-├── .gitignore
-├── README.md
-│
-├── templates/
-│   ├── login.html
-│   ├── register.html
-│   └── todos.html
-│
-├── static/
-│   └── style.css
-│
-└── venv/
-```
+TECHNOLOGIES USED
+- Python
+- Flask
+- MySQL
+- HTML
+- CSS
+- JavaScript
 
-## Database Setup
+DATABASE
+The application uses a MySQL database named registration.
 
-Create a MySQL database named `registration` and create the required tables:
+The main tables are:
+- users: Stores user account information.
+- todos: Stores personal tasks.
+- AUTHOR: Stores author information.
+- BOOK: Stores book information and author relationships.
 
-### Users Table
+PROJECT TYPE
+Individual Database Lab Project.
 
-Stores user account information, including email, name, and password hash.
+INSTALLATION AND SETUP
 
-### Todos Table
+1. Clone the repository:
+git clone YOUR_REPOSITORY_URL
 
-Stores tasks associated with each user, including the task title, completion status, and creation date.
-
-Make sure the database tables and columns match those used in `app.py`.
-
-## Installation and Setup
-
-### 1. Clone the Repository
-
-```bash
-git clone <repository-url>
+2. Navigate to the project folder:
 cd "DB LAB2"
-```
 
-### 2. Create a Virtual Environment
+3. Create a virtual environment:
+python -m venv .venv
 
-```bash
-python -m venv venv
-```
+4. Activate the virtual environment on Windows:
+.venv\Scripts\Activate.ps1
 
-### 3. Activate the Virtual Environment
+5. Install the required packages:
+pip install -r requirements.txt
 
-**Windows PowerShell:**
+6. Configure the database:
+- Open MySQL Workbench.
+- Create or configure the registration database.
+- Execute the SQL scripts in the database folder.
+- Configure your database credentials in the .env file.
 
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-
-### 4. Install Dependencies
-
-```bash
-pip install Flask mysql-connector-python bcrypt python-dotenv
-```
-
-### 5. Configure Environment Variables
-
-Create a `.env` file in the project root directory:
-
-```env
-SECRET_KEY=your_secret_key
-MYSQL_PASSWORD=your_mysql_password
-```
-
-Replace the example values with your own secret key and MySQL password.
-
-### 6. Run the Application
-
-```bash
+7. Run the application:
 python app.py
-```
 
-### 7. Open the Application
-
-Open your browser and visit:
-
-```text
+8. Open the following URL in your browser:
 http://127.0.0.1:5000
-```
 
-Register an account or log in to start managing your tasks.
+SECURITY NOTE
+Do not upload the .env file or share your database credentials.
 
-## Security Notes
-
-* Passwords are stored as hashes rather than plain text.
-* Environment variables are used for configuration.
-* Each user's task operations are restricted to their own records.
-* Do not upload your `.env` file or database credentials to GitHub.
-
-## Author
-
-Developed as a Python Flask and MySQL web application project.
+AUTHOR
+Developed individually as a Database Lab project using Flask and MySQL.
