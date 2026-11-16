@@ -1,90 +1,195 @@
-To-Do & Library Management System
+# Library Management System
 
-ABOUT THE PROJECT
-This project is a web-based application developed using Python, Flask, and MySQL. It allows users to manage personal tasks and manage a library of books and authors.
+A web-based Library Management System developed using **Python, Flask, and MySQL**. The project provides an interface for managing books, authors, members, and borrowing records, along with searching, reporting, and image upload functionality.
 
-FEATURES
+## Project Overview
 
-1. User Authentication
+This project was developed as an individual university project. It extends a Flask-based web application to support library management operations and database queries.
+
+## Features
+
+### 1. User Authentication
 - User registration and login.
 - Secure password hashing.
-- Session management.
-- Logout functionality.
+- Session-based authentication.
+- Protected pages for logged-in users.
 
-2. To-Do Management
-- Add, edit, and delete tasks.
-- Mark tasks as completed or pending.
-- Add task descriptions and due dates.
-- Display task counters.
+### 2. Books Management
+- Add new books.
+- Edit book information.
+- Delete books.
+- Display the books catalogue.
+- Search books by title.
+- Filter books by minimum and maximum price.
+- Filter books by category.
 
-3. Book Management
-- Add, edit, and delete books.
-- Display book titles, authors, and prices.
-- Display book cover images.
-- Search for books.
+### 3. Authors Management
+- Add new authors.
+- Edit author information.
+- Delete authors.
+- Display authors.
+- Upload and display author photos.
 
-4. Author Management
-- Add, edit, and delete authors.
-- Display author names and countries.
-- Display the number of books for each author.
+### 4. Image Upload
+- Upload book cover images.
+- Upload author photos.
+- Store uploaded images in the static images directory.
+- Validate image file types and file sizes.
 
-5. Additional Features
+### 5. Reports
+The system provides several database reports, including:
+- Number of books and average price per category.
+- Authors who have at least two books.
+- Book price statistics (COUNT, SUM, AVG, MIN, MAX).
+- All authors and their number of books, including authors with no books.
+- Books whose authors and publishers are from the same country.
+
+### 6. Loans Management
+- Display unreturned loans.
+- Find members who have never borrowed a book.
+- Find books that have never been borrowed.
+- Display the top three most borrowed books.
+- Identify the member with the highest number of loans.
+
+### 7. Additional Features
 - Dark mode.
-- MySQL database integration.
-- User input validation.
-- Simple and user-friendly interface.
+- Responsive and user-friendly interface.
+- Form validation.
+- Database relationships using foreign keys.
 
-TECHNOLOGIES USED
-- Python
-- Flask
-- MySQL
-- HTML
-- CSS
-- JavaScript
+## Technologies Used
 
-DATABASE
-The application uses a MySQL database named registration.
+- **Python**
+- **Flask**
+- **MySQL**
+- **HTML**
+- **CSS**
+- **JavaScript**
+- **Git & GitHub**
 
-The main tables are:
-- users: Stores user account information.
-- todos: Stores personal tasks.
-- AUTHOR: Stores author information.
-- BOOK: Stores book information and author relationships.
+## Project Structure
 
-PROJECT TYPE
-Individual Database Lab Project.
+```text
+DB LAB2/
+│
+├── app.py
+├── requirements.txt
+├── .gitignore
+│
+├── database/
+│   └── schema.sql
+│
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   └── theme.js
+│   └── images/
+│
+└── templates/
+    ├── base.html
+    ├── login.html
+    ├── register.html
+    ├── todos.html
+    ├── books.html
+    ├── book_form.html
+    ├── authors.html
+    ├── author_form.html
+    ├── reports.html
+    ├── loans.html
+    └── error.html
+```
 
-INSTALLATION AND SETUP
+## Installation and Setup
 
-1. Clone the repository:
-git clone YOUR_REPOSITORY_URL
+### 1. Clone the Repository
 
-2. Navigate to the project folder:
-cd "DB LAB2"
+```bash
+git clone https://github.com/hadeermagd/todo-list-flask.git
+cd todo-list-flask
+```
 
-3. Create a virtual environment:
-python -m venv .venv
+### 2. Create a Virtual Environment
 
-4. Activate the virtual environment on Windows:
-.venv\Scripts\Activate.ps1
+```bash
+python -m venv venv
+```
 
-5. Install the required packages:
+### 3. Activate the Virtual Environment
+
+**Windows:**
+
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+### 4. Install Dependencies
+
+```bash
 pip install -r requirements.txt
+```
 
-6. Configure the database:
-- Open MySQL Workbench.
-- Create or configure the registration database.
-- Execute the SQL scripts in the database folder.
-- Configure your database credentials in the .env file.
+### 5. Configure Environment Variables
 
-7. Run the application:
+Create a `.env` file in the project root directory and configure your local MySQL connection:
+
+```env
+SECRET_KEY=your_secret_key
+MYSQL_HOST=localhost
+MYSQL_USER=root
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_DATABASE=registration
+```
+
+Replace the example values with your own local configuration.
+
+### 6. Database Configuration
+
+- Make sure MySQL Server is running.
+- Create and configure the `registration` database.
+- Ensure that the required tables and relationships are created.
+- Configure the database connection using the `.env` file.
+
+### 7. Run the Application
+
+```bash
 python app.py
+```
 
-8. Open the following URL in your browser:
+Open your browser and visit:
+
+```text
 http://127.0.0.1:5000
+```
 
-SECURITY NOTE
-Do not upload the .env file or share your database credentials.
+## Database Entities
 
-AUTHOR
-Developed individually as a Database Lab project using Flask and MySQL.
+The library database includes the following main entities:
+
+- AUTHOR
+- BOOK
+- PUBLISHER
+- CATEGORY
+- MEMBER
+- LOAN
+
+The application also uses `users` and `todos` tables for authentication and task management.
+
+## Security Notes
+
+- Passwords are stored as hashes, not plain text.
+- Database credentials are stored in environment variables.
+- The `.env` file and virtual environment are excluded from Git using `.gitignore`.
+
+## Developer
+
+**Hadeer Abdullah**
+
+Individual University Project
+
+**GitHub Repository:**  
+https://github.com/hadeermagd/todo-list-flask
+
+---
+
+*Developed as part of a Database Lab university project.*
