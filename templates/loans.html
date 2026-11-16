@@ -1,0 +1,158 @@
+
+{% extends "base.html" %}
+
+{% block title %}Loans Reports{% endblock %}
+
+{% block content %}
+
+<h1>Loans Reports</h1>
+
+<!-- Report 1: Unreturned Loans -->
+<section class="card">
+    <h2>Unreturned Loans</h2>
+
+    {% if unreturned_loans %}
+    <table>
+        <thead>
+            <tr>
+                <th>Loan ID</th>
+                <th>Book Title</th>
+                <th>Member Name</th>
+                <th>Loan Date</th>
+                <th>Return Date</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for loan in unreturned_loans %}
+            <tr>
+                <td>{{ loan.loan_id }}</td>
+                <td>{{ loan.book_title }}</td>
+                <td>{{ loan.member_name }}</td>
+                <td>{{ loan.loan_date }}</td>
+                <td>Not Returned</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>No unreturned loans found.</p>
+    {% endif %}
+</section>
+
+<!-- Report 2: Members Who Never Borrowed -->
+<section class="card">
+    <h2>Members Who Never Borrowed</h2>
+
+    {% if members_never_borrowed %}
+    <table>
+        <thead>
+            <tr>
+                <th>Member ID</th>
+                <th>Member Name</th>
+                <th>Email</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for member in members_never_borrowed %}
+            <tr>
+                <td>{{ member.member_id }}</td>
+                <td>{{ member.member_name }}</td>
+                <td>{{ member.email }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>All members have borrowed books.</p>
+    {% endif %}
+</section>
+
+<!-- Report 3: Books Never Borrowed -->
+<section class="card">
+    <h2>Books Never Borrowed</h2>
+
+    {% if books_never_borrowed %}
+    <table>
+        <thead>
+            <tr>
+                <th>Book ID</th>
+                <th>Book Title</th>
+                <th>Price</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for book in books_never_borrowed %}
+            <tr>
+                <td>{{ book.book_id }}</td>
+                <td>{{ book.book_title }}</td>
+                <td>{{ "%.2f"|format(book.price) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>All books have been borrowed.</p>
+    {% endif %}
+</section>
+
+
+<!-- Report 4: Top 3 Most Borrowed Books -->
+<section class="card">
+    <h2>Top 3 Most Borrowed Books</h2>
+
+    {% if most_borrowed_books %}
+    <table>
+        <thead>
+            <tr>
+                <th>Book ID</th>
+                <th>Book Title</th>
+                <th>Number of Borrowings</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for book in most_borrowed_books %}
+            <tr>
+                <td>{{ book.book_id }}</td>
+                <td>{{ book.book_title }}</td>
+                <td>{{ book.borrow_count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>No borrowing records found.</p>
+    {% endif %}
+</section>
+
+<!-- Report 5: Member with Most Loans -->
+<section class="card">
+    <h2>Member with Most Loans</h2>
+
+    {% if most_active_member %}
+    <table>
+        <thead>
+            <tr>
+                <th>Member ID</th>
+                <th>Member Name</th>
+                <th>Number of Loans</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+                <td>{{ most_active_member.member_id }}</td>
+                <td>{{ most_active_member.member_name }}</td>
+                <td>{{ most_active_member.loan_count }}</td>
+            </tr>
+        </tbody>
+    </table>
+    {% else %}
+        <p>No borrowing records found.</p>
+    {% endif %}
+</section>
+
+{% endblock %}

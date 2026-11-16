@@ -551,10 +551,14 @@ def delete_todo(todo_id):
 # Books list and search
 # --------------------------------------------------
 
+
 @app.route("/books")
 @login_required
 def books():
     search = request.args.get("q", "").strip()
+    min_price = request.args.get("min_price", "").strip()
+    max_price = request.args.get("max_price", "").strip()
+    category_id = request.args.get("category_id", "").strip()
 
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
@@ -562,25 +566,51 @@ def books():
     try:
         sql = """
             SELECT b.book_id, b.title, b.price, b.author_id,
-                   b.cover_image, a.name AS author_name
+                   b.cover_image, b.publish_year,
+                   a.name AS author_name,
+                   p.name AS publisher_name,
+                   c.name AS category_name, b.category_id
             FROM BOOK b
             LEFT JOIN AUTHOR a ON b.author_id = a.author_id
+            LEFT JOIN PUBLISHER p ON b.publisher_id = p.publisher_id
+            LEFT JOIN CATEGORY c ON b.category_id = c.category_id
+            WHERE 1=1
         """
+
         params = []
 
         if search:
-            sql += " WHERE b.title LIKE %s OR a.name LIKE %s"
-            params.extend([f"%{search}%", f"%{search}%"])
+            sql += " AND b.title LIKE %s"
+            params.append(f"%{search}%")
 
-        sql += " ORDER BY b.title"
+        if min_price:
+            sql += " AND b.price >= %s"
+            params.append(min_price)
+
+        if max_price:
+            sql += " AND b.price <= %s"
+            params.append(max_price)
+
+        if category_id:
+            sql += " AND b.category_id = %s"
+            params.append(category_id)
+
+        sql += " ORDER BY b.price ASC"
 
         cursor.execute(sql, tuple(params))
         book_list = cursor.fetchall()
 
+        cursor.execute("SELECT category_id, name FROM CATEGORY ORDER BY name")
+        categories = cursor.fetchall()
+
         return render_template(
             "books.html",
             books=book_list,
-            search=search
+            search=search,
+            min_price=min_price,
+            max_price=max_price,
+            category_id=category_id,
+            categories=categories
         )
 
     finally:
@@ -604,6 +634,7 @@ def edit_book(book_id):
     return book_form(book_id)
 
 
+
 def book_form(book_id=None):
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
@@ -612,6 +643,7 @@ def book_form(book_id=None):
     try:
         book = None
 
+        # Get the book when editing
         if book_id is not None:
             cursor.execute(
                 "SELECT * FROM BOOK WHERE book_id = %s",
@@ -624,21 +656,45 @@ def book_form(book_id=None):
 
             old_cover = book.get("cover_image")
 
+        # Get authors, publishers, and categories
         cursor.execute("SELECT author_id, name FROM AUTHOR ORDER BY name")
         author_list = cursor.fetchall()
+
+        cursor.execute(
+            "SELECT publisher_id, name FROM PUBLISHER ORDER BY name"
+        )
+        publisher_list = cursor.fetchall()
+
+        cursor.execute(
+            "SELECT category_id, name FROM CATEGORY ORDER BY name"
+        )
+        category_list = cursor.fetchall()
+        
+        
+        print("PUBLISHERS:", publisher_list)
+        print("CATEGORIES:", category_list)
 
         if request.method == "POST":
             title = request.form.get("title", "").strip()
             price_text = request.form.get("price", "").strip()
             author_id = request.form.get("author_id", "").strip()
+            publish_year_text = request.form.get("publish_year", "").strip()
+            publisher_id = request.form.get("publisher_id", "").strip()
+            category_id = request.form.get("category_id", "").strip()
             upload = request.files.get("cover_image")
 
-            if not title or len(title) > 255:
+            # Validate title
+            if not title or len(title) > 150:
                 flash("Enter a valid book title.", "error")
                 return render_template(
-                    "book_form.html", book=book, authors=author_list
+                    "book_form.html",
+                    book=book,
+                    authors=author_list,
+                    publishers=publisher_list,
+                    categories=category_list
                 )
 
+            # Validate price
             try:
                 price = float(price_text)
                 if price < 0:
@@ -646,50 +702,154 @@ def book_form(book_id=None):
             except (ValueError, TypeError):
                 flash("Enter a valid non-negative price.", "error")
                 return render_template(
-                    "book_form.html", book=book, authors=author_list
+                    "book_form.html",
+                    book=book,
+                    authors=author_list,
+                    publishers=publisher_list,
+                    categories=category_list
                 )
 
+            # Validate author
             try:
                 author_id = int(author_id)
             except (ValueError, TypeError):
                 flash("Please select an author.", "error")
                 return render_template(
-                    "book_form.html", book=book, authors=author_list
+                    "book_form.html",
+                    book=book,
+                    authors=author_list,
+                    publishers=publisher_list,
+                    categories=category_list
                 )
 
             if not any(a["author_id"] == author_id for a in author_list):
                 flash("The selected author does not exist.", "error")
                 return render_template(
-                    "book_form.html", book=book, authors=author_list
+                    "book_form.html",
+                    book=book,
+                    authors=author_list,
+                    publishers=publisher_list,
+                    categories=category_list
                 )
 
+            # Validate publish year (optional)
+            if publish_year_text:
+                try:
+                    publish_year = int(publish_year_text)
+                    if publish_year <= 0:
+                        raise ValueError
+                except (ValueError, TypeError):
+                    flash("Enter a valid publish year.", "error")
+                    return render_template(
+                        "book_form.html",
+                        book=book,
+                        authors=author_list,
+                        publishers=publisher_list,
+                        categories=category_list
+                    )
+            else:
+                publish_year = None
+
+            # Validate publisher
+            try:
+                publisher_id = int(publisher_id)
+            except (ValueError, TypeError):
+                flash("Please select a publisher.", "error")
+                return render_template(
+                    "book_form.html",
+                    book=book,
+                    authors=author_list,
+                    publishers=publisher_list,
+                    categories=category_list
+                )
+
+            if not any(
+                p["publisher_id"] == publisher_id
+                for p in publisher_list
+            ):
+                flash("The selected publisher does not exist.", "error")
+                return render_template(
+                    "book_form.html",
+                    book=book,
+                    authors=author_list,
+                    publishers=publisher_list,
+                    categories=category_list
+                )
+
+            # Validate category
+            try:
+                category_id = int(category_id)
+            except (ValueError, TypeError):
+                flash("Please select a category.", "error")
+                return render_template(
+                    "book_form.html",
+                    book=book,
+                    authors=author_list,
+                    publishers=publisher_list,
+                    categories=category_list
+                )
+
+            if not any(
+                c["category_id"] == category_id
+                for c in category_list
+            ):
+                flash("The selected category does not exist.", "error")
+                return render_template(
+                    "book_form.html",
+                    book=book,
+                    authors=author_list,
+                    publishers=publisher_list,
+                    categories=category_list
+                )
+
+            # Save the uploaded cover image
             try:
                 new_cover = save_image(upload)
             except ValueError as error:
                 flash(str(error), "error")
                 return render_template(
-                    "book_form.html", book=book, authors=author_list
+                    "book_form.html",
+                    book=book,
+                    authors=author_list,
+                    publishers=publisher_list,
+                    categories=category_list
                 )
 
             cover_to_save = new_cover or old_cover
 
+            # Add a new book
             if book_id is None:
                 cursor.execute(
                     """
-                    INSERT INTO BOOK (title, price, author_id, cover_image)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO BOOK
+                    (title, price, author_id, cover_image,
+                     publish_year, publisher_id, category_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
-                    (title, price, author_id, cover_to_save)
+                    (
+                        title, price, author_id, cover_to_save,
+                        publish_year, publisher_id, category_id
+                    )
                 )
+
+            # Update an existing book
             else:
                 cursor.execute(
                     """
                     UPDATE BOOK
-                    SET title = %s, price = %s,
-                        author_id = %s, cover_image = %s
+                    SET title = %s,
+                        price = %s,
+                        author_id = %s,
+                        cover_image = %s,
+                        publish_year = %s,
+                        publisher_id = %s,
+                        category_id = %s
                     WHERE book_id = %s
                     """,
-                    (title, price, author_id, cover_to_save, book_id)
+                    (
+                        title, price, author_id, cover_to_save,
+                        publish_year, publisher_id, category_id, book_id
+                    )
                 )
 
             connection.commit()
@@ -703,7 +863,9 @@ def book_form(book_id=None):
         return render_template(
             "book_form.html",
             book=book,
-            authors=author_list
+            authors=author_list,
+            publishers=publisher_list,
+            categories=category_list
         )
 
     except Exception:
@@ -713,6 +875,7 @@ def book_form(book_id=None):
     finally:
         cursor.close()
         connection.close()
+
 
 
 # --------------------------------------------------
@@ -794,7 +957,7 @@ def authors():
 
 # --------------------------------------------------
 # Add and edit authors
-# --------------------------------------------------
+# ------------boo--------------------------------------
 
 @app.route("/authors/add", methods=["GET", "POST"])
 @login_required
@@ -926,6 +1089,208 @@ def delete_author(author_id):
         connection.close()
 
     return redirect(url_for("authors"))
+
+
+
+# --------------------------------------------------
+# Reports
+# --------------------------------------------------
+
+@app.route("/reports")
+@login_required
+def reports():
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        # Report 1: Number of books and average price per category
+        cursor.execute("""
+            SELECT
+                c.category_id,
+                c.name AS category_name,
+                COUNT(b.book_id) AS book_count,
+                COALESCE(AVG(b.price), 0) AS average_price
+            FROM CATEGORY c
+            LEFT JOIN BOOK b ON c.category_id = b.category_id
+            GROUP BY c.category_id, c.name
+            ORDER BY c.name
+        """)
+        category_reports = cursor.fetchall()
+
+        # Report 2: Authors who have at least 2 books
+        cursor.execute("""
+            SELECT
+                a.author_id,
+                a.name AS author_name,
+                COUNT(b.book_id) AS book_count
+            FROM AUTHOR a
+            INNER JOIN BOOK b ON a.author_id = b.author_id
+            GROUP BY a.author_id, a.name
+            HAVING COUNT(b.book_id) >= 2
+            ORDER BY book_count DESC
+        """)
+        author_reports = cursor.fetchall()
+
+        # Report 3: General book price statistics
+        cursor.execute("""
+            SELECT
+                COUNT(*) AS total_books,
+                COALESCE(SUM(price), 0) AS total_price,
+                COALESCE(AVG(price), 0) AS average_price,
+                COALESCE(MIN(price), 0) AS minimum_price,
+                COALESCE(MAX(price), 0) AS maximum_price
+            FROM BOOK
+        """)
+        price_reports = cursor.fetchone()
+        
+        
+        # Report 4: All authors and their number of books
+        cursor.execute("""
+            SELECT
+                a.author_id,
+                a.name AS author_name,
+                COUNT(b.book_id) AS book_count
+            FROM AUTHOR a
+            LEFT JOIN BOOK b ON a.author_id = b.author_id
+            GROUP BY a.author_id, a.name
+            ORDER BY a.name
+        """)
+        all_author_reports = cursor.fetchall()
+
+        # Report 5: Books where author and publisher are from the same country
+        cursor.execute("""
+            SELECT
+                b.book_id,
+                b.title AS book_title,
+                a.name AS author_name,
+                a.country AS author_country,
+                p.name AS publisher_name,
+                p.country AS publisher_country
+            FROM BOOK b
+            INNER JOIN AUTHOR a ON b.author_id = a.author_id
+            INNER JOIN PUBLISHER p ON b.publisher_id = p.publisher_id
+            WHERE a.country IS NOT NULL
+              AND p.country IS NOT NULL
+              AND a.country = p.country
+            ORDER BY b.title
+        """)
+        same_country_books = cursor.fetchall()
+
+
+        
+        return render_template(
+            "reports.html",
+            category_reports=category_reports,
+            author_reports=author_reports,
+            price_reports=price_reports,
+            all_author_reports=all_author_reports,
+            same_country_books=same_country_books
+        )
+
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+
+# --------------------------------------------------
+# Loans Reports
+# --------------------------------------------------
+
+@app.route("/loans")
+@login_required
+def loans():
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        # Report 1: Unreturned loans
+        cursor.execute("""
+            SELECT
+                l.loan_id,
+                b.title AS book_title,
+                m.name AS member_name,
+                l.loan_date,
+                l.return_date
+            FROM LOAN l
+            INNER JOIN BOOK b ON l.book_id = b.book_id
+            INNER JOIN MEMBER m ON l.member_id = m.member_id
+            WHERE l.return_date IS NULL
+            ORDER BY l.loan_date
+        """)
+        unreturned_loans = cursor.fetchall()
+
+        # Report 2: Members who never borrowed a book
+        cursor.execute("""
+            SELECT
+                m.member_id,
+                m.name AS member_name,
+                m.email
+            FROM MEMBER m
+            LEFT JOIN LOAN l ON m.member_id = l.member_id
+            WHERE l.loan_id IS NULL
+            ORDER BY m.name
+        """)
+        members_never_borrowed = cursor.fetchall()
+
+        # Report 3: Books that were never borrowed
+        cursor.execute("""
+            SELECT
+                b.book_id,
+                b.title AS book_title,
+                b.price
+            FROM BOOK b
+            LEFT JOIN LOAN l ON b.book_id = l.book_id
+            WHERE l.loan_id IS NULL
+            ORDER BY b.title
+        """)
+        
+        books_never_borrowed = cursor.fetchall()
+
+        # Report 4: Top 3 most borrowed books
+        cursor.execute("""
+            SELECT
+                b.book_id,
+                b.title AS book_title,
+                COUNT(l.loan_id) AS borrow_count
+            FROM BOOK b
+            INNER JOIN LOAN l ON b.book_id = l.book_id
+            GROUP BY b.book_id, b.title
+            ORDER BY borrow_count DESC, b.title
+            LIMIT 3
+        """)
+        most_borrowed_books = cursor.fetchall()
+
+        # Report 5: Member with the most loans
+        cursor.execute("""
+            SELECT
+                m.member_id,
+                m.name AS member_name,
+                COUNT(l.loan_id) AS loan_count
+            FROM MEMBER m
+            INNER JOIN LOAN l ON m.member_id = l.member_id
+            GROUP BY m.member_id, m.name
+            ORDER BY loan_count DESC, m.name
+            LIMIT 1
+        """)
+        most_active_member = cursor.fetchone()
+
+        
+        return render_template(
+            "loans.html",
+            unreturned_loans=unreturned_loans,
+            members_never_borrowed=members_never_borrowed,
+            books_never_borrowed=books_never_borrowed,
+            most_borrowed_books=most_borrowed_books,
+            most_active_member=most_active_member
+        )
+
+
+    finally:
+        cursor.close()
+        connection.close()
+
 
 
 # --------------------------------------------------

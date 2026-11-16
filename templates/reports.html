@@ -1,0 +1,174 @@
+
+{% extends "base.html" %}
+
+{% block title %}Library Reports{% endblock %}
+
+{% block content %}
+
+<div class="page-heading">
+    <div>
+        <h1>Library Reports</h1>
+        <p class="subtitle">View statistics and information about the library.</p>
+    </div>
+</div>
+
+<!-- Report 1: Books per Category -->
+
+<div class="card">
+    <h2>Books per Category</h2>
+    <p class="subtitle">Number of books and average price in each category.</p>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Number of Books</th>
+                    <th>Average Price</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for item in category_reports %}
+                <tr>
+                    <td>{{ item.category_name }}</td>
+                    <td>{{ item.book_count }}</td>
+                    <td>{{ "%.2f"|format(item.average_price) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3">No categories found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Report 2: Authors with at least 2 books -->
+
+<div class="card">
+    <h2>Authors with at Least 2 Books</h2>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Author Name</th>
+                    <th>Number of Books</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for author in author_reports %}
+                <tr>
+                    <td>{{ author.author_name }}</td>
+                    <td>{{ author.book_count }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="2">No authors found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Report 3: Book Price Statistics -->
+
+<div class="card">
+    <h2>Book Price Statistics</h2>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Total Books</th>
+                    <th>Total Price</th>
+                    <th>Average Price</th>
+                    <th>Minimum Price</th>
+                    <th>Maximum Price</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <tr>
+                    <td>{{ price_reports.total_books }}</td>
+                    <td>{{ "%.2f"|format(price_reports.total_price) }}</td>
+                    <td>{{ "%.2f"|format(price_reports.average_price) }}</td>
+                    <td>{{ "%.2f"|format(price_reports.minimum_price) }}</td>
+                    <td>{{ "%.2f"|format(price_reports.maximum_price) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<!-- Report 4: All Authors and Number of Books -->
+<section class="card">
+    <h2>All Authors and Number of Books</h2>
+
+    {% if all_author_reports %}
+    <table>
+        <thead>
+            <tr>
+                <th>Author ID</th>
+                <th>Author Name</th>
+                <th>Number of Books</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for author in all_author_reports %}
+            <tr>
+                <td>{{ author.author_id }}</td>
+                <td>{{ author.author_name }}</td>
+                <td>{{ author.book_count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>No authors found.</p>
+    {% endif %}
+</section>
+
+<!-- Report 5: Authors and Publishers from the Same Country -->
+<section class="card">
+    <h2>Books with Author and Publisher from Same Country</h2>
+
+    {% if same_country_books %}
+    <table>
+        <thead>
+            <tr>
+                <th>Book ID</th>
+                <th>Book Title</th>
+                <th>Author</th>
+                <th>Author Country</th>
+                <th>Publisher</th>
+                <th>Publisher Country</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for book in same_country_books %}
+            <tr>
+                <td>{{ book.book_id }}</td>
+                <td>{{ book.book_title }}</td>
+                <td>{{ book.author_name }}</td>
+                <td>{{ book.author_country }}</td>
+                <td>{{ book.publisher_name }}</td>
+                <td>{{ book.publisher_country }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>No books found with matching countries.</p>
+    {% endif %}
+</section>
+
+
+{% endblock %}
